@@ -5,6 +5,7 @@ Tags: GA, recent posts, latest articles, latest posts, most read, top posts, mos
 Requires at least: 4.9
 Tested up to: 5.2
 Stable tag: trunk
+Plugin URI: https://github.com/asentech-github/google-analytics-top-posts
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Requires PHP: 5.3+
