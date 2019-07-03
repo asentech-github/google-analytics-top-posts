@@ -38,4 +38,5 @@ Features and capabilities provided by the plugin include:
 8. Exclude URLs from fetched result from GA like home page.
 
 == Screenshots ==
-![Alt text](./screenshot-1.png?raw=true "Settings Page")
+![Alt text](./screenshot-1.png?raw=true "Sidebar Widget")
+![Alt text](./screenshot-2.png?raw=true "Settings Page")
