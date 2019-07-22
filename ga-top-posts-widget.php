@@ -1,28 +1,25 @@
 <?php 
 // Register and load the widget
 function wpb_load_top_posts_widget() {
-    register_widget( 'wpb_top_posts_widget' );
+    register_widget( 'GATopPosts_widget' );
 }
 add_action( 'widgets_init', 'wpb_load_top_posts_widget' );
- 
 // Creating the widget 
-class wpb_top_posts_widget extends WP_Widget {
-
+class GATopPosts_widget extends WP_Widget {
 	// define constant variables
-	const PLUGIN_FILE = '/google-analytics-top-posts.php';
-	const PLUGIN_BASE_FOLDER = 'google-analytics-custom-top-posts';
-	const FILTER_OPTION_NAME ='widget_wpb_top_posts_widget';
+	const PLUGIN_FILE = '/ga-top-posts.php';
+	const PLUGIN_BASE_FOLDER = 'ga-custom-top-posts';
+	const FILTER_OPTION_NAME ='widget_GATopPosts_widget';
 	const OPTION_NAME ='top-post-data';
 	// class constructor
 	public function __construct() {
-		add_shortcode( 'displayTopPostsWidget', array($this,'shortcode_for_display_toppost_widget'));
+		//add_shortcode( 'displayTopPostsWidget', array($this,'shortcode_for_display_toppost_widget'));
 		$widget_ops = array( 
-		'classname' => 'top-posts-widget',
-		'description' => 'A plugin for display top posts',
+		'classname' => 'ga-top-posts-widget',
+		'description' => 'A plugin for display top posts from google analytics',
 		);
-	parent::__construct( 'wpb_top_posts_widget', 'Top Posts Widget', $widget_ops );
+		parent::__construct( 'GATopPosts_widget', 'GA Top Posts Widget', $widget_ops );
 	}
-
 	// output the option form field in admin Widgets screen
 	public function form( $instance ) {		
 		 $title = !empty($instance['title']) ? $instance['title']: esc_html__( 'Title', 'text_domain' );	
@@ -34,7 +31,7 @@ class wpb_top_posts_widget extends WP_Widget {
 		 $duration_scale = !empty($instance['duration_scale']) ? $instance['duration_scale']: null;	
 		?>
 		<div id="custtoppostsfrm">
-		<p>Shortcode : [displayTopPostsWidget]</p>
+		
 		<p>
 			<label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>">
 				<?php esc_attr_e( 'Title:', 'text_domain' ); ?>
@@ -78,7 +75,6 @@ class wpb_top_posts_widget extends WP_Widget {
 		</div>
 		<?php	
 	}
-
 	// save options
 	public function update( $new_instance, $old_instance ) {
 		$instance = array();
@@ -90,22 +86,15 @@ class wpb_top_posts_widget extends WP_Widget {
 		$instance['duration_scale'] = ( ! empty( $new_instance['duration_scale'] ) ) ? strip_tags( $new_instance['duration_scale'] ) : '';
 		$selected_posts = ( ! empty ( $new_instance['display_on_page'] ) ) ? (array) $new_instance['display_on_page'] : array();
 		$instance['display_on_page_view'] = array_map( 'sanitize_text_field', $selected_posts );
-		
 		return $instance;
 	}
-	
-	
-	function shortcode_for_display_toppost_widget() {
-		$gtoptions = get_option( self::FILTER_OPTION_NAME, array() );
+	function shortcode_for_display_toppost_widget($args, $gtoptions) {
 		$options = get_option( self::OPTION_NAME, array() );
-		
 		$profile_id = isset( $options['profile_id'] ) ? $options['profile_id'] : null;
 		$site_url    = isset( $options['site_url'] ) ? $options['site_url'] : null;
 		$keyfile    = isset( $options['file'] ) ? $options['file'] : null;
 		$service_email    = isset( $options['service_email'] ) ? $options['service_email'] : null;
 		$exclude_url = isset( $options['exclude_url'] ) ? $options['exclude_url'] : array();
-
-		$gtoptions = current($gtoptions);
 		$title = isset( $gtoptions['title'] ) ? $gtoptions['title'] : null;
 		$class = isset( $gtoptions['class'] ) ? $gtoptions['class'] : null;
 		$order_by = isset( $gtoptions['order_by'] ) ? $gtoptions['order_by'] : null;
@@ -113,46 +102,34 @@ class wpb_top_posts_widget extends WP_Widget {
 		$duration_time = isset( $gtoptions['duration_time'] ) ? $gtoptions['duration_time'] : null;
 		$duration_scale = isset( $gtoptions['duration_scale'] ) ? $gtoptions['duration_scale'] : null;		
 		$display_on_page = isset( $gtoptions['display_on_page_view'] ) ? (array) $gtoptions['display_on_page_view'] : array();
-
 		$dimensions = array('pagePath'); //dimensions
 		$metrics = array('pageviews','visits','uniquePageviews'); //metrics
 		$sort_metric = array('-uniquePageviews'); //sort
 		$filter = null; //'ga:pagePath!=/'; //filter
-		
 		$ga_max_results = $how_many_posts;
-    	
     	if($exclude_url) {
 			$exclude_url = explode(",", $exclude_url);
 			$ga_max_results += count($exclude_url); //get more result from google analytics then remove exluded url added from admin bakend
 		}
-
 		$start_index =1;		
 		$durattime = "- ".$duration_time." ".$duration_scale;
-		
 		$start_date = date("Y-m-d", strtotime($durattime));		
 		$end_date = date("Y-m-d");	
-			
-		defined('ga_profile_id') or define('ga_profile_id',$profile_id);
-
 		$keyfile = isset( $options['file'] ) ? $options['file'] : null;
 		$uploaddir = wp_upload_dir();
 		$keyfile = $uploaddir['basedir'].'/ga_top_posts/'.$keyfile;
-		   
 		$option_name = 'ga_top_post_data_res';
 		$get_ga = get_option( $option_name );
-
 		$store_array = array();
-    
 		if ( $get_ga ) {
 			$get_ga = get_option( $option_name );
 			$ga_return = unserialize($get_ga);
 		}
-		if($profile_id !="" && $site_url !="" && $keyfile !="" && $service_email !="")
+		elseif($profile_id !="" && $site_url !="" && $keyfile !="" && $service_email !="")
 		{
 			// call GA API from here
 			require_once("gapi.class.php");	
 			$top_posts = new gapi($service_email, $keyfile);
-			
 			$top_posts->requestReportData(
 				$profile_id, //report_id
 				$dimensions, //array('pagePath'), //dimensions
@@ -164,40 +141,29 @@ class wpb_top_posts_widget extends WP_Widget {
 				$start_index, //2, //start_index
 				$ga_max_results //5 //max_results
 			);
-
-			
 			$results = $top_posts->getResults();
-		}
-		if(!empty($results))
-		{
-			foreach($results as $result) {
-				$store_array[] = array('pageviews'=>$result->getPageviews(),'visits'=>$result->getVisits(),'uniquePageviews'=>$result->getUniquepageviews(),'pagePath'=>$result->getPagepath());
+			if(!empty($results))
+			{
+				foreach($results as $result) {
+					$store_array[] = array('pageviews'=>$result->getPageviews(),'visits'=>$result->getVisits(),'uniquePageviews'=>$result->getUniquepageviews(),'pagePath'=>$result->getPagepath());
+				}
 			}
+			$value = serialize($store_array);
+			// Store in wp_option table.
+			update_option( $option_name, $value );
+			$get_ga = get_option( $option_name );
+			$ga_return = unserialize($get_ga);
 		}
-		$value = serialize($store_array);
-		// Store in wp_option table.
-		update_option( $option_name, $value );
-
-    	$get_ga = get_option( $option_name );
-		$ga_return = unserialize($get_ga);
-		$results = $ga_return;
-
-		if ( empty($results) ) {
+		if ( empty($ga_return) ) {
 	        echo '<p>' . 'There are no posts to display.' . '</p>';
 	        return;
 	    }
-
+		$results = $ga_return;
 	    $posts = array();
 		$result_count = 0;
-		
 		foreach($results as $result) {
-
 			if($result_count == $how_many_posts) break;
-			
 			if($exclude_url && in_array($result['pagePath'], $exclude_url)) continue;
-		
-			$result_count++;
-
             $slug = trim($result['pagePath'], '/');
             $slug = explode("/", $slug);
             $slug = end($slug);
@@ -208,12 +174,11 @@ class wpb_top_posts_widget extends WP_Widget {
                 'post_status'    => 'publish',
                 'posts_per_page' => 1
             );
-
             $top_post = get_posts( $args );
             if( !empty($top_post) ) {
                 $posts[] = $top_post[0];
+				$result_count++;
             }
-
         }
 		// generate html from here
 		if(!empty($posts)) {
@@ -232,13 +197,9 @@ class wpb_top_posts_widget extends WP_Widget {
 	        echo '</ol></div></div>';
 	    }
 	}
-	
-
 	// output the widget content on the front-end
 	public function widget( $args, $instance ) {		
-		$this->shortcode_for_display_toppost_widget();		
+		$this->shortcode_for_display_toppost_widget($args, $instance);		
 	}
-
 } // Class wpb_widget ends here
-
 ?>

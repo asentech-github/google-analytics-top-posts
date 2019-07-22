@@ -25,19 +25,16 @@
  * @version 2.0
  * 
  */
-
 class gapi {
   const account_data_url = 'https://www.googleapis.com/analytics/v3/management/accountSummaries';
   const report_data_url = 'https://www.googleapis.com/analytics/v3/data/ga';
   const interface_name = 'GAPI-2.0';
   const dev_mode = false;
-
   private $auth_method = null;
   private $account_entries = array();
   private $report_aggregate_metrics = array();
   private $report_root_parameters = array();
   private $results = array();
-
   /**
    * Constructor function for new gapi instances
    *
@@ -53,7 +50,6 @@ class gapi {
     $this->auth_method = new gapiOAuth2();
     $this->auth_method->fetchToken($client_email, $key_file, $delegate_email);
   }
-
   /**
    * Return the auth token string retrieved by Google
    *
@@ -62,7 +58,6 @@ class gapi {
   public function getToken() {
     return $this->auth_method->getToken();
   }
-
   /**
    * Return the auth token information from the Google service
    *
@@ -71,7 +66,6 @@ class gapi {
   public function getTokenInfo() {
     return $this->auth_method->getTokenInfo();
   }
-
   /**
    * Revoke the current auth token, rendering it invalid for future requests
    *
@@ -80,7 +74,6 @@ class gapi {
   public function revokeToken() {
     return $this->auth_method->revokeToken();
   }
-
   /**
    * Request account data from Google Analytics
    *
@@ -94,14 +87,12 @@ class gapi {
       );
     $url = new gapiRequest(gapi::account_data_url);
     $response = $url->get($get_variables, $this->auth_method->generateAuthHeader());
-
     if (substr($response['code'], 0, 1) == '2') {
       return $this->accountObjectMapper($response['body']);
     } else {
       throw new Exception('GAPI: Failed to request account data. Error: "' . strip_tags($response['body']) . '"');
     }
   }
-
   /**
    * Request report data from Google Analytics
    *
@@ -121,7 +112,6 @@ class gapi {
    */
   public function requestReportData($report_id, $dimensions=null, $metrics, $sort_metric=null, $filter=null, $start_date=null, $end_date=null, $start_index=1, $max_results=10000) {
     $parameters = array('ids'=>'ga:' . $report_id);
-
     if (is_array($dimensions)) {
       $dimensions_string = '';
       foreach ($dimensions as $dimesion) {
@@ -131,7 +121,6 @@ class gapi {
     } elseif ($dimensions !== null) {
       $parameters['dimensions'] = 'ga:'.$dimensions;
     }
-
     if (is_array($metrics)) {
       $metrics_string = '';
       foreach ($metrics as $metric) {
@@ -141,12 +130,10 @@ class gapi {
     } else {
       $parameters['metrics'] = 'ga:'.$metrics;
     }
-
     if ($sort_metric==null&&isset($parameters['metrics'])) {
       $parameters['sort'] = $parameters['metrics'];
     } elseif (is_array($sort_metric)) {
       $sort_metric_string = '';
-
       foreach ($sort_metric as $sort_metric_value) {
         //Reverse sort - Thanks Nick Sullivan
         if (substr($sort_metric_value, 0, 1) == "-") {
@@ -156,7 +143,6 @@ class gapi {
           $sort_metric_string .= ',ga:' . $sort_metric_value; // Ascending
         }
       }
-
       $parameters['sort'] = substr($sort_metric_string, 1);
     } else {
       if (substr($sort_metric, 0, 1) == "-") {
@@ -165,14 +151,12 @@ class gapi {
         $parameters['sort'] = 'ga:' . $sort_metric;
       }
     }
-
     if ($filter!=null) {
       $filter = $this->processFilter($filter);
       if ($filter!==false) {
         $parameters['filters'] = $filter;
       }
     }
-
     if ($start_date==null) {
       // Use the day that Google Analytics was released (1 Jan 2005).
       $start_date = '2005-01-01';
@@ -180,27 +164,20 @@ class gapi {
       // Perhaps we are receiving a Unix timestamp.
       $start_date = date('Y-m-d', $start_date);
     }
-
     $parameters['start-date'] = $start_date;
-
     if ($end_date==null) {
       $end_date = date('Y-m-d');
     } elseif (is_int($end_date)) {
       // Perhaps we are receiving a Unix timestamp.
       $end_date = date('Y-m-d', $end_date);
     }
-
     $parameters['end-date'] = $end_date;
-
-
     $parameters['start-index'] = $start_index;
-    $parameters['max-results'] = $max_results;
-
+    $parameters['max-results'] = 100;//$max_results;
     $parameters['prettyprint'] = gapi::dev_mode ? 'true' : 'false';
-    
     $url = new gapiRequest(gapi::report_data_url);
     $response = $url->get($parameters, $this->auth_method->generateAuthHeader());
-
+	//print_r($response['code']);
     //HTTP 2xx
     if (substr($response['code'], 0, 1) == '2') {
       return $this->reportObjectMapper($response['body']);
@@ -208,7 +185,6 @@ class gapi {
       throw new Exception('GAPI: Failed to request report data. Error: "' . $this->cleanErrorResponse($response['body']) . '"');
     }
   }
-  
   /**
    * Clean error message from Google API
    * 
@@ -225,7 +201,6 @@ class gapi {
       return isset($json->error->message) ? strval($json->error->message) : $error;
     }
   }
-
   /**
    * Process filter string, clean parameters and convert to Google Analytics
    * compatible format
@@ -235,13 +210,11 @@ class gapi {
    */
   protected function processFilter($filter) {
     $valid_operators = '(!~|=~|==|!=|>|<|>=|<=|=@|!@)';
-
     $filter = preg_replace('/\s\s+/', ' ', trim($filter)); //Clean duplicate whitespace
     $filter = str_replace(array(',', ';'), array('\,', '\;'), $filter); //Escape Google Analytics reserved characters
     $filter = preg_replace('/(&&\s*|\|\|\s*|^)([a-z0-9]+)(\s*' . $valid_operators . ')/i','$1ga:$2$3',$filter); //Prefix ga: to metrics and dimensions
     $filter = preg_replace('/[\'\"]/i', '', $filter); //Clear invalid quote characters
     $filter = preg_replace(array('/\s*&&\s*/','/\s*\|\|\s*/','/\s*' . $valid_operators . '\s*/'), array(';', ',', '$1'), $filter); //Clean up operators
-
     if (strlen($filter) > 0) {
       return urlencode($filter);
     }
@@ -249,7 +222,6 @@ class gapi {
       return false;
     }
   }
-
   /**
    * Report Account Mapper to convert the JSON to array of useful PHP objects
    *
@@ -259,7 +231,6 @@ class gapi {
   protected function accountObjectMapper($json_string) {
     $json = json_decode($json_string, true);
     $results = array();
-
     foreach ($json['items'] as $item) {
       foreach ($item['webProperties'] as $property) {
         if (isset($property['profiles'][0]['id'])) {
@@ -268,12 +239,9 @@ class gapi {
         $results[] = new gapiAccountEntry($property);
       }
     }
-
     $this->account_entries = $results;
-
     return $results;
   }
-
   /**
    * Report Object Mapper to convert the JSON to array of useful PHP objects
    *
@@ -282,30 +250,22 @@ class gapi {
    */
   protected function reportObjectMapper($json_string) {
     $json = json_decode($json_string, true);
-
     $this->results = null;
     $results = array();
-
     $report_aggregate_metrics = array();
-
     //Load root parameters
-
     // Start with elements from the root level of the JSON that aren't themselves arrays.
     $report_root_parameters = array_filter($json, function($var){
       return !is_array($var);
     });
-
     // Get the items from the 'query' object, and rename them slightly.
     foreach($json['query'] as $index => $value) {
       $new_index = lcfirst(str_replace(' ', '', ucwords(str_replace('-', ' ', $index))));
       $report_root_parameters[$new_index] = $value;
     }
-
     // Now merge in the profileInfo, as this is also mostly useful.
     array_merge($report_root_parameters, $json['profileInfo']);
-
     //Load result aggregate metrics
-
     foreach($json['totalsForAllResults'] as $index => $metric_value) {
       //Check for float, or value with scientific notation
       if (preg_match('/^(\d+\.\d+)|(\d+E\d+)|(\d+.\d+E\d+)$/', $metric_value)) {
@@ -314,7 +274,6 @@ class gapi {
         $report_aggregate_metrics[str_replace('ga:', '', $index)] = intval($metric_value);
       }
     }
-
     //Load result entries
     if(isset($json['rows'])){
       foreach($json['rows'] as $row) {
@@ -324,7 +283,6 @@ class gapi {
           switch($header['columnType']) {
             case 'METRIC':
               $metric_value = $row[$index];
-
               //Check for float, or value with scientific notation
               if(preg_match('/^(\d+\.\d+)|(\d+E\d+)|(\d+.\d+E\d+)$/',$metric_value)) {
                 $metrics[str_replace('ga:', '', $header['name'])] = floatval($metric_value);
@@ -342,14 +300,11 @@ class gapi {
         $results[] = new gapiReportEntry($metrics, $dimensions);
       }
     }
-
     $this->report_root_parameters = $report_root_parameters;
     $this->report_aggregate_metrics = $report_aggregate_metrics;
     $this->results = $results;
-
     return $results;
   }
-
   /**
    * Get current analytics results
    *
@@ -358,7 +313,6 @@ class gapi {
   public function getResults() {
     return is_array($this->results) ? $this->results : false;
   }
-
   /**
    * Get current account data
    *
@@ -367,7 +321,6 @@ class gapi {
   public function getAccounts() {
     return is_array($this->account_entries) ? $this->account_entries : false;
   }
-
   /**
    * Get an array of the metrics and the matching
    * aggregate values for the current result
@@ -377,7 +330,6 @@ class gapi {
   public function getMetrics() {
     return $this->report_aggregate_metrics;
   }
-
   /**
    * Call method to find a matching root parameter or 
    * aggregate metric to return
@@ -391,24 +343,17 @@ class gapi {
     if (!preg_match('/^get/', $name)) {
       throw new Exception('No such function "' . $name . '"');
     }
-
     $name = preg_replace('/^get/', '', $name);
-
     $parameter_key = gapi::ArrayKeyExists($name, $this->report_root_parameters);
-
     if ($parameter_key) {
       return $this->report_root_parameters[$parameter_key];
     }
-
     $aggregate_metric_key = gapi::ArrayKeyExists($name, $this->report_aggregate_metrics);
-
     if ($aggregate_metric_key) {
       return $this->report_aggregate_metrics[$aggregate_metric_key];
     }
-
     throw new Exception('No valid root parameter or aggregate metric called "' . $name . '"');
   }
-  
   /**
    * Case insensitive array_key_exists function, also returns
    * matching key.
@@ -433,14 +378,12 @@ class gapi {
     return false;
   }
 }
-
 /**
  * Storage for individual gapi account entries
  *
  */
 class gapiAccountEntry {
   private $properties = array();
-
   /**
    * Constructor function for all new gapiAccountEntry instances
    * 
@@ -450,7 +393,6 @@ class gapiAccountEntry {
   public function __construct($properties) {
     $this->properties = $properties;
   }
-
   /**
    * toString function to return the name of the account
    *
@@ -460,7 +402,6 @@ class gapiAccountEntry {
     return isset($this->properties['name']) ?
       $this->properties['name']: '';
   }
-
   /**
    * Get an associative array of the properties
    * and the matching values for the current result
@@ -470,7 +411,6 @@ class gapiAccountEntry {
   public function getProperties() {
     return $this->properties;
   }
-
   /**
    * Call method to find a matching parameter to return
    *
@@ -482,19 +422,14 @@ class gapiAccountEntry {
     if (!preg_match('/^get/', $name)) {
       throw new Exception('No such function "' . $name . '"');
     }
-
     $name = preg_replace('/^get/', '', $name);
-
     $property_key = gapi::ArrayKeyExists($name, $this->properties);
-
     if ($property_key) {
       return $this->properties[$property_key];
     }
-
     throw new Exception('No valid property called "' . $name . '"');
   }
 }
-
 /**
  * Storage for individual gapi report entries
  *
@@ -502,7 +437,6 @@ class gapiAccountEntry {
 class gapiReportEntry {
   private $metrics = array();
   private $dimensions = array();
-
   /**
    * Constructor function for all new gapiReportEntry instances
    * 
@@ -514,7 +448,6 @@ class gapiReportEntry {
     $this->metrics = $metrics;
     $this->dimensions = $dimensions;
   }
-
   /**
    * toString function to return the name of the result
    * this is a concatented string of the dimensions chosen
@@ -528,7 +461,6 @@ class gapiReportEntry {
     return is_array($this->dimensions) ? 
       implode(' ', $this->dimensions) : '';
   }
-
   /**
    * Get an associative array of the dimensions
    * and the matching values for the current result
@@ -538,7 +470,6 @@ class gapiReportEntry {
   public function getDimensions() {
     return $this->dimensions;
   }
-
   /**
    * Get an array of the metrics and the matchning
    * values for the current result
@@ -548,7 +479,6 @@ class gapiReportEntry {
   public function getMetrics() {
     return $this->metrics;
   }
-
   /**
    * Call method to find a matching metric or dimension to return
    *
@@ -561,25 +491,18 @@ class gapiReportEntry {
     if (!preg_match('/^get/', $name)) {
       throw new Exception('No such function "' . $name . '"');
     }
-
     $name = preg_replace('/^get/', '', $name);
-
     $metric_key = gapi::ArrayKeyExists($name, $this->metrics);
-
     if ($metric_key) {
       return $this->metrics[$metric_key];
     }
-
     $dimension_key = gapi::ArrayKeyExists($name, $this->dimensions);
-
     if ($dimension_key) {
       return $this->dimensions[$dimension_key];
     }
-
     throw new Exception('No valid metric or dimesion called "' . $name . '"');
   }
 }
-
 /**
  * OAuth2 Google API authentication
  *
@@ -590,15 +513,12 @@ class gapiOAuth2 {
   const grant_type = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
   const header_alg = 'RS256';
   const header_typ = 'JWT';
-
   private function base64URLEncode($data) {
     return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
   }
-
   private function base64URLDecode($data) {
     return base64_decode(str_pad(strtr($data, '-_', '+/'), strlen($data) % 4, '=', STR_PAD_RIGHT));
   } 
-
   /**
    * Authenticate Google Account with OAuth2
    *
@@ -612,7 +532,6 @@ class gapiOAuth2 {
       "alg" => self::header_alg,
       "typ" => self::header_typ,
     );
-
     $claimset = array(
       "iss" => $client_email,
       "scope" => self::scope_url,
@@ -620,13 +539,10 @@ class gapiOAuth2 {
       "exp" => time() + (60 * 60),
       "iat" => time(),
     );
-
     if(!empty($delegate_email)) {
       $claimset["sub"] = $delegate_email;
     }
-
     $data = $this->base64URLEncode(json_encode($header)) . '.' . $this->base64URLEncode(json_encode($claimset));
-
     if (!file_exists($key_file)) {
       if ( !file_exists(__DIR__ . DIRECTORY_SEPARATOR . $key_file) ) {
         throw new Exception('GAPI: Failed load key file "' . $key_file . '". File could not be found.');
@@ -634,39 +550,28 @@ class gapiOAuth2 {
         $key_file = __DIR__ . DIRECTORY_SEPARATOR . $key_file;
       }
     }
-
     $key_data = file_get_contents($key_file);
-    
     if (empty($key_data)) {
       throw new Exception('GAPI: Failed load key file "' . $key_file . '". File could not be opened or is empty.');
     }
-
     openssl_pkcs12_read($key_data, $certs, 'notasecret');
-
     if (!isset($certs['pkey'])) {
       throw new Exception('GAPI: Failed load key file "' . $key_file . '". Unable to load pkcs12 check if correct p12 format.');
     }
-
     openssl_sign($data, $signature, openssl_pkey_get_private($certs['pkey']), "sha256");
-
     $post_variables = array(
       'grant_type' => self::grant_type,
       'assertion' => $data . '.' . $this->base64URLEncode($signature),
     );
-
     $url = new gapiRequest(self::request_url);
     $response = $url->post(null, $post_variables);
     $auth_token = json_decode($response['body'], true);
-
     if (substr($response['code'], 0, 1) != '2' || !is_array($auth_token) || empty($auth_token['access_token'])) {
       throw new Exception('GAPI: Failed to authenticate user. Error: "' . strip_tags($response['body']) . '"');
     }
-
     $this->auth_token = $auth_token['access_token'];
-
     return $this->auth_token;
   }
-
   /**
    * Return the auth token string retrieved from Google
    *
@@ -675,7 +580,6 @@ class gapiOAuth2 {
   public function getToken() {
     return $this->auth_token;
   }
-  
   /**
    * Generate authorization token header for all requests
    *
@@ -688,7 +592,6 @@ class gapiOAuth2 {
     return array('Authorization' => 'Bearer ' . $token);
   }
 }
-
 /**
  * Google Analytics API request
  *
@@ -696,13 +599,10 @@ class gapiOAuth2 {
 class gapiRequest {
   const http_interface = 'auto'; //'auto': autodetect, 'curl' or 'fopen'
   const interface_name = gapi::interface_name;
-
   private $url = null;
-
   public function __construct($url) {
     $this->url = $url;
   }
-
   /**
    * Return the URL to be requested, optionally adding GET variables
    *
@@ -715,10 +615,8 @@ class gapiRequest {
     } else {
       $get_variables = null;
     }
-
     return $this->url . $get_variables;
   }
-
   /**
    * Perform http POST request
    * 
@@ -728,9 +626,8 @@ class gapiRequest {
    * @param Array $headers
    */
   public function post($get_variables=null, $post_variables=null, $headers=null) {
-    return $this->request($get_variables, $post_variables, $headers);
+    return $this->request($get_variables, $post_variables, $headers,'POST');
   }
-
   /**
    * Perform http GET request
    * 
@@ -739,9 +636,8 @@ class gapiRequest {
    * @param Array $headers
    */
   public function get($get_variables=null, $headers=null) {
-    return $this->request($get_variables, null, $headers);
+    return $this->request($get_variables, null, $headers,'GET');
   }
-
   /**
    * Perform http request
    * 
@@ -750,22 +646,19 @@ class gapiRequest {
    * @param Array $post_variables
    * @param Array $headers
    */
-  public function request($get_variables=null, $post_variables=null, $headers=null) {
+  public function request($get_variables=null, $post_variables=null, $headers=null, $method=null) {
     $interface = self::http_interface;
-
     if (self::http_interface == 'auto')
       $interface = function_exists('curl_exec') ? 'curl' : 'fopen';
-
     switch ($interface) {
       case 'curl':
-        return $this->curlRequest($get_variables, $post_variables, $headers);
+        return $this->curlRequest($get_variables, $post_variables, $headers,$method);
       case 'fopen':
         return $this->fopenRequest($get_variables, $post_variables, $headers);
       default:
         throw new Exception('Invalid http interface defined. No such interface "' . self::http_interface . '"');
     }
   }
-
   /**
    * HTTP request using PHP CURL functions
    * Requires curl library installed and configured for PHP
@@ -774,40 +667,52 @@ class gapiRequest {
    * @param Array $post_variables
    * @param Array $headers
    */
-  private function curlRequest($get_variables=null, $post_variables=null, $headers=null) {
-    $ch = curl_init();
-
+  private function curlRequest($get_variables=null, $post_variables=null, $headers=null,$method=null) {
+    //
     if (is_array($get_variables)) {
       $get_variables = '?' . str_replace('&amp;', '&', urldecode(http_build_query($get_variables, '', '&')));
     } else {
       $get_variables = null;
     }
-
-    curl_setopt($ch, CURLOPT_URL, $this->url . $get_variables);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); //CURL doesn't like google's cert
-
-    if (is_array($post_variables)) {
-      curl_setopt($ch, CURLOPT_POST, true);
-      curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($post_variables, '', '&'));
-    }
-
+	$string_headers = array();
+	$query ='';
     if (is_array($headers)) {
-      $string_headers = array();
       foreach ($headers as $key => $value) {
         $string_headers[] = "$key: $value";
-      }
-      curl_setopt($ch, CURLOPT_HTTPHEADER, $string_headers);
+      }      
     }
-
-    $response = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-    curl_close($ch);
-
-    return array('body' => $response, 'code' => $code);
+    $url = $this->url . $get_variables;
+    if (!empty($post_variables) && is_array($post_variables))
+		$query = http_build_query(array_filter($post_variables));
+    $args = array('body' => $query, 'headers' => $string_headers);
+    $api_url = $url;
+    if($method=='POST')
+    {
+      $api_response = wp_remote_post($api_url, $args);
+      if ( is_wp_error( $api_response ) ) {
+        $error_message = $api_response->get_error_message();
+        return "Something went wrong: $error_message";
+      } else {
+        $code = wp_remote_retrieve_response_code( $api_response);
+        $body = wp_remote_retrieve_body( $api_response );
+        return array('body' => $body, 'code' =>  $code);
+        wp_die();
+      }
+    }
+    if($method=='GET')
+    {
+			$api_response = wp_remote_get($api_url, array('headers'=>$string_headers[0]));
+			if ( is_wp_error( $api_response ) ) {
+			$error_message = $api_response->get_error_message();
+			return "Something went wrong: $error_message";
+			} else {
+			$code = wp_remote_retrieve_response_code( $api_response);
+			$body = wp_remote_retrieve_body( $api_response );
+			return array('body' => $body, 'code' =>  $code);
+			wp_die();
+      }
+    }
   }
-
   /**
    * HTTP request using native PHP fopen function
    * Requires PHP openSSL
@@ -818,21 +723,18 @@ class gapiRequest {
    */
   private function fopenRequest($get_variables=null, $post_variables=null, $headers=null) {
     $http_options = array('method'=>'GET', 'timeout'=>3);
-
     $string_headers = '';
     if (is_array($headers)) {
       foreach ($headers as $key => $value) {
         $string_headers .= "$key: $value\r\n";
       }
     }
-
     if (is_array($get_variables)) {
       $get_variables = '?' . str_replace('&amp;', '&', urldecode(http_build_query($get_variables, '', '&')));
     }
     else {
       $get_variables = null;
     }
-
     if (is_array($post_variables)) {
       $post_variables = str_replace('&amp;', '&', urldecode(http_build_query($post_variables, '', '&')));
       $http_options['method'] = 'POST';
@@ -844,10 +746,8 @@ class gapiRequest {
       $post_variables = '';
       $http_options['header'] = $string_headers;
     }
-
     $context = stream_context_create(array('http'=>$http_options));
     $response = @file_get_contents($this->url . $get_variables, null, $context);
-
     return array('body'=>$response!==false?$response:'Request failed, consider using php5-curl module for more information.', 'code'=>$response!==false?'200':'400');
   }
 }

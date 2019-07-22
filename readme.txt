@@ -1,6 +1,5 @@
-=== Google analytics Top post ===
+=== Google analytics Top post for WP by Asentechllc  ===
 Contributors: asentech, tranpura, bhupendraspatil, hsurekar
-Author URI: https://www.asentechllc.com
 Tags: GA, recent posts, latest articles, latest posts, most read, top posts, most read widget, most read short code
 Requires at least: 4.9
 Tested up to: 5.2
@@ -15,7 +14,7 @@ Display most read articles from fetching google analytics API
 
 == Description ==
 
-The [displayTopPosts] is an open-source initiative aiming to fetch most read articles from google analytics. Most read articles will display real time top 5 articles after fetching them from GA and display them in your page, post, and sidebar using shortcode.
+The [ga-top-posts] is an open-source initiative aiming to fetch most read articles from google analytics. Most read articles will display top 5 articles after fetching them from GA and display them in your page, post, and sidebar using shortcode.
 
 Features and capabilities provided by the plugin include:
 - We can use shortcode to display top articles with dynamic attributes.
@@ -39,3 +38,7 @@ Features and capabilities provided by the plugin include:
 8. Exclude URLs from fetched result from GA like home page.
 
 == Screenshots ==
+
+== License ==
+
+Google Analytics Dashboard for WP it's released under the GPLv2, you can use it free of charge on your personal or commercial website.
